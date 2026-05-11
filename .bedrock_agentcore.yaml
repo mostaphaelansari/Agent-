@@ -11,12 +11,12 @@ agents:
     container_runtime: none
     source_path: /home/a953083/aws/multi-agent-local
     aws:
-      execution_role: null
-      execution_role_auto_create: true
+      execution_role: arn:aws:iam::554025156005:role/AmazonBedrockAgentCoreSDKRuntime-eu-west-1-1295f1482c
+      execution_role_auto_create: false
       account: '554025156005'
       region: eu-west-1
-      ecr_repository: null
-      ecr_auto_create: true
+      ecr_repository: 554025156005.dkr.ecr.eu-west-1.amazonaws.com/bedrock-agentcore-multi_agent_chatbot
+      ecr_auto_create: false
       s3_path: null
       s3_auto_create: false
       network_configuration:
@@ -30,13 +30,13 @@ agents:
         idle_runtime_session_timeout: null
         max_lifetime: null
     bedrock_agentcore:
-      agent_id: null
-      agent_arn: null
-      agent_session_id: null
+      agent_id: multi_agent_chatbot-C7Pn2Z94Bk
+      agent_arn: arn:aws:bedrock-agentcore:eu-west-1:554025156005:runtime/multi_agent_chatbot-C7Pn2Z94Bk
+      agent_session_id: 13707daf-2545-46f8-b95c-0f3188555ea2
     codebuild:
-      project_name: null
-      execution_role: null
-      source_bucket: null
+      project_name: bedrock-agentcore-multi_agent_chatbot-builder
+      execution_role: arn:aws:iam::554025156005:role/AmazonBedrockAgentCoreSDKCodeBuild-eu-west-1-1295f1482c
+      source_bucket: bedrock-agentcore-codebuild-sources-554025156005-eu-west-1
     memory:
       mode: NO_MEMORY
       memory_id: null
