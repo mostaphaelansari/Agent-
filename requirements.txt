@@ -1,0 +1,8 @@
+bedrock-agentcore
+strands-agents
+strands-agents-tools
+playwright
+nest-asyncio
+boto3
+python-dotenv
+opentelemetry-exporter-otlp-proto-http

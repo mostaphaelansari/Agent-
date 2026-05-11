@@ -1,0 +1,22 @@
+import os
+
+from dotenv import load_dotenv
+load_dotenv()
+
+import telemetry_setup  # noqa: F401  (must come before agent imports)
+
+from bedrock_agentcore import BedrockAgentCoreApp
+from agents.chatbot_agent import chat
+
+app = BedrockAgentCoreApp()
+
+
+@app.entrypoint
+def invoke(payload, context):
+    session_id = getattr(context, "session_id", None) or "default"
+    user_msg = payload.get("prompt") or payload.get("message") or ""
+    return {"result": chat(session_id, user_msg)}
+
+
+if __name__ == "__main__":
+    app.run(port=int(os.environ.get("AGENTCORE_PORT", "8081")))
