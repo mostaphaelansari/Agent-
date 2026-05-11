@@ -14,6 +14,6 @@ def save_turn(session_id, role, text):
 
 def get_last_turns(session_id, k=10):
     rows = _conn.execute(
-        "SELECT role, text FROM turns WHERE session_id=? ORDER BY ts DESC LIMIT ?",
+        "SELECT role, text FROM turns WHERE session_id=? ORDER BY ROWID DESC LIMIT ?",
         (session_id, k)).fetchall()
     return list(reversed(rows))
