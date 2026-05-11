@@ -25,4 +25,4 @@ def invoke(payload, context):
 
 
 if __name__ == "__main__":
-    app.run(port=int(os.environ.get("AGENTCORE_PORT", "8081")))
+    app.run()

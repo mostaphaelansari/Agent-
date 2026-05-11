@@ -32,7 +32,7 @@ agents:
     bedrock_agentcore:
       agent_id: multi_agent_chatbot-C7Pn2Z94Bk
       agent_arn: arn:aws:bedrock-agentcore:eu-west-1:554025156005:runtime/multi_agent_chatbot-C7Pn2Z94Bk
-      agent_session_id: 13707daf-2545-46f8-b95c-0f3188555ea2
+      agent_session_id: null
     codebuild:
       project_name: bedrock-agentcore-multi_agent_chatbot-builder
       execution_role: arn:aws:iam::554025156005:role/AmazonBedrockAgentCoreSDKCodeBuild-eu-west-1-1295f1482c
