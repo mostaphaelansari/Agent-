@@ -6,11 +6,13 @@
 
 ## 1. Overview
 
-`multi-agent-local` is a three-tier, hierarchical multi-agent system that gives a conversational chatbot the ability to autonomously browse the web. It runs interactively on a developer workstation and exposes a Bedrock AgentCore-compatible HTTP entrypoint, so it can be invoked both as a local REPL and as an AgentCore runtime.
+`multi-agent-local` is a two-tier, hierarchical multi-agent system that gives a conversational chatbot the ability to autonomously browse the web. It runs interactively on a developer workstation and exposes a Bedrock AgentCore-compatible HTTP entrypoint, so it can be invoked both as a local REPL and as an AgentCore runtime.
 
 ```
-User → Chatbot Agent → Orchestrator Agent → Browser Agent → Web
+User → Chatbot Agent → Browser Agent → Web
 ```
+
+> **Note** — an earlier revision included an intermediate Orchestrator Agent. It was removed because it routed between a single specialist (`browser`), adding ~30s of LLM overhead per browsing turn for no actual routing decision. If multiple specialists are added later, reintroduce the orchestrator at that point.
 
 All AI inference is powered by **AWS Bedrock** (`us.anthropic.claude-sonnet-4-6`), accessed through the **Strands Agents** framework. Conversation history is persisted locally in **SQLite**. Traces are exported via OTLP to a local **Jaeger** instance.
 
@@ -28,9 +30,8 @@ multi-agent-local/
 ├── .env                            # Local env vars (not committed)
 ├── agents/
 │   ├── __init__.py
-│   ├── chatbot_agent.py            # Tier 1 — Conversational front-end
-│   ├── orchestrator_agent.py       # Tier 2 — Task decomposition
-│   └── browser_agent.py            # Tier 3 — Web automation specialist
+│   ├── chatbot_agent.py            # Tier 1 — Conversational front-end (owns memory + browse tool)
+│   └── browser_agent.py            # Tier 2 — Web automation specialist
 ├── screenshots/                    # Browser session screenshots (runtime)
 └── memory.db                       # SQLite DB (runtime, gitignored)
 ```
@@ -43,43 +44,25 @@ multi-agent-local/
 
 | Property | Value |
 |---|---|
-| **Role** | User-facing conversational interface |
+| **Role** | User-facing conversational interface + dispatcher |
 | **Model** | `BedrockModel` via `BEDROCK_MODEL_ID` env var |
-| **Tool** | `delegate(task: str)` |
+| **Tool** | `browse(goal: str)` |
 | **Backed by** | `strands.Agent` |
 
 The chatbot agent handles the full conversation lifecycle:
 1. Loads the last 10 turns from SQLite and builds a conversation context string.
 2. Sends the context to the Bedrock LLM.
-3. If the user intent requires web interaction, the LLM calls the `delegate` tool, which forwards the request to the Orchestrator Agent.
+3. If the user intent requires web interaction, the LLM calls the `browse` tool, which forwards the request directly to the Browser Agent.
 4. Saves both the user message and the assistant reply to SQLite.
 
 ```python
 @tool
-def delegate(task: str) -> str:
-    """Send an action task (web lookup, scraping, form fill) to the orchestrator."""
-    return run_orchestration(task)
-```
-
-### 3.2 Orchestrator Agent ([agents/orchestrator_agent.py](agents/orchestrator_agent.py))
-
-| Property | Value |
-|---|---|
-| **Role** | Task decomposer and specialist dispatcher |
-| **Model** | `BedrockModel` via `BEDROCK_MODEL_ID` env var |
-| **Tool** | `call_browser_agent(goal: str)` |
-| **Backed by** | `strands.Agent` |
-
-The orchestrator receives a high-level task string from the chatbot, breaks it down if necessary, and delegates execution to the appropriate specialist. Currently the only registered specialist is the Browser Agent.
-
-```python
-@tool
-def call_browser_agent(goal: str) -> dict:
-    """Delegate a web-browsing goal to the Browser Agent."""
+def browse(goal: str) -> dict:
+    """Run a web-browsing goal (lookup, scraping, form fill) and return the result."""
     return run_browser_task(goal)
 ```
 
-### 3.3 Browser Agent ([agents/browser_agent.py](agents/browser_agent.py))
+### 3.2 Browser Agent ([agents/browser_agent.py](agents/browser_agent.py))
 
 | Property | Value |
 |---|---|
@@ -106,31 +89,25 @@ browser_agent = Agent(
 
 ```
 ┌──────────┐  user message   ┌────────────────┐
-│  User /  │ ──────────────► │ Chatbot Agent  │
-│  Client  │                 │ (strands.Agent)│
-└──────────┘                 └───────┬────────┘
-      ▲                              │ delegate(task)        ┌──────────────┐
-      │                              ▼                       │   SQLite     │
-      │                    ┌──────────────────────┐          │  memory.db   │
-      │                    │ Orchestrator Agent   │◄────────►│  (turns)     │
-      │                    │   (strands.Agent)    │          └──────────────┘
-      │ final reply        └──────────┬───────────┘
-      │                              │ call_browser_agent(goal)
-      │                              ▼
-      │                    ┌──────────────────────┐
-      │                    │   Browser Agent      │
-      │                    │   (strands.Agent)    │
-      │                    └──────────┬───────────┘
-      │                              │ AgentCoreBrowser.browser(...)
-      │                              ▼
-      │                         ┌─────────┐
-      └─────────────────────────│   Web   │
-                                └─────────┘
+│  User /  │ ──────────────► │ Chatbot Agent  │◄─────────┐
+│  Client  │                 │ (strands.Agent)│          │
+└──────────┘                 └───────┬────────┘          │
+      ▲                              │ browse(goal)     │ read/write turns
+      │                              ▼                  ▼
+      │                    ┌──────────────────────┐  ┌──────────────┐
+      │                    │   Browser Agent      │  │   SQLite     │
+      │                    │   (strands.Agent)    │  │  memory.db   │
+      │                    └──────────┬───────────┘  └──────────────┘
+      │ final reply                   │ AgentCoreBrowser.browser(...)
+      │                               ▼
+      │                          ┌─────────┐
+      └──────────────────────────│   Web   │
+                                 └─────────┘
 
-       All three agents emit OTLP traces ──► Jaeger (localhost:4318)
+       Both agents emit OTLP traces ──► Jaeger (localhost:4318)
 ```
 
-All three agents make independent calls to **AWS Bedrock** for LLM inference. Only the Chatbot Agent reads/writes to the memory store. Spans from all three tiers are exported via OTLP to the local Jaeger collector.
+Both agents make independent calls to **AWS Bedrock** for LLM inference. Only the Chatbot Agent reads/writes to the memory store. Spans from both tiers are exported via OTLP to the local Jaeger collector.
 
 ---
 

@@ -1,22 +1,22 @@
 import os
 from strands import Agent, tool
 from strands.models import BedrockModel
-from agents.orchestrator_agent import run_orchestration
+from agents.browser_agent import run_browser_task
 from memory import save_turn, get_last_turns
 
 @tool
-def delegate(task: str) -> str:
-    """Send an action task (web lookup, scraping, form fill) to the orchestrator."""
-    return run_orchestration(task)
+def browse(goal: str) -> dict:
+    """Run a web-browsing goal (lookup, scraping, form fill) and return the result."""
+    return run_browser_task(goal)
 
 chatbot = Agent(
     name="chatbot",
     model=BedrockModel(model_id=os.environ["BEDROCK_MODEL_ID"], region_name=os.environ["AWS_REGION"]),
-    tools=[delegate],
+    tools=[browse],
     system_prompt=(
         "You are a friendly chatbot. Chat naturally for small talk. "
-        "When the user wants something done on the web, call `delegate` "
-        "with a precise task brief and summarize the result."
+        "When the user wants something done on the web, call `browse` "
+        "with a precise goal and summarize the result."
     ),
 )
 
