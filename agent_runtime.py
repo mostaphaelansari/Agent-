@@ -1,7 +1,13 @@
+import logging
 import os
 
 from dotenv import load_dotenv
 load_dotenv()
+
+logging.basicConfig(
+    level=os.environ.get("LOG_LEVEL", "INFO"),
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
 
 import telemetry_setup  # noqa: F401  (must come before agent imports)
 
