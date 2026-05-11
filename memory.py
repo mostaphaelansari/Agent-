@@ -1,11 +1,12 @@
 import atexit
 import logging
+import os
 import pathlib
 import sqlite3
 
 logger = logging.getLogger(__name__)
 
-DB = pathlib.Path("memory.db")
+DB = pathlib.Path(os.environ.get("MEMORY_DB_PATH", "memory.db"))
 _conn = sqlite3.connect(DB, check_same_thread=False)
 _conn.execute(
     """CREATE TABLE IF NOT EXISTS turns(
