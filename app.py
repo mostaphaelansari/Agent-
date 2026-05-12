@@ -7,7 +7,7 @@ load_dotenv()
 
 import telemetry_setup  # noqa: F401  (must come before agent imports)
 
-from agents.chatbot_agent import chat
+from agents.chatbot import chat
 
 
 def main() -> None:
@@ -16,6 +16,11 @@ def main() -> None:
         "--session",
         default=None,
         help="Session ID (default: auto-generated UUID-based ID)",
+    )
+    parser.add_argument(
+        "--actor",
+        default="default",
+        help="Actor (user) ID for cross-session memory (default: 'default')",
     )
     parser.add_argument(
         "--log-level",
@@ -32,14 +37,14 @@ def main() -> None:
 
     session_id = args.session or f"local-{uuid.uuid4().hex[:8]}"
     logger = logging.getLogger("app")
-    logger.info("Chatbot ready (session=%s). Ctrl+C to exit.", session_id)
+    logger.info("Chatbot ready (session=%s, actor=%s). Ctrl+C to exit.", session_id, args.actor)
 
     while True:
         try:
             msg = input("you: ")
             if not msg.strip():
                 continue
-            print("bot:", chat(session_id, msg))
+            print("bot:", chat(session_id, msg, actor_id=args.actor))
         except (KeyboardInterrupt, EOFError):
             logger.info("Exiting...")
             break
