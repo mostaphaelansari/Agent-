@@ -112,10 +112,14 @@ _SYSTEM_PROMPT = (
 )
 
 
-def _build_session_manager(session_id: str, actor_id: str) -> AgentCoreMemorySessionManager:
-    memory_id = os.environ["AGENTCORE_MEMORY_ID"]
-    summary_sid = os.environ["AGENTCORE_SUMMARY_STRATEGY_ID"]
-    pref_sid = os.environ["AGENTCORE_PREF_STRATEGY_ID"]
+def _build_session_manager(session_id: str, actor_id: str):
+    memory_id = os.environ.get("AGENTCORE_MEMORY_ID")
+    summary_sid = os.environ.get("AGENTCORE_SUMMARY_STRATEGY_ID")
+    pref_sid = os.environ.get("AGENTCORE_PREF_STRATEGY_ID")
+
+    if not all([memory_id, summary_sid, pref_sid]):
+        logger.warning("Memory env vars not set — running without memory")
+        return None
 
     retrieval = {
         f"/strategies/{summary_sid}/actors/{{actorId}}/sessions/{{sessionId}}/": RetrievalConfig(
@@ -139,7 +143,8 @@ def _build_session_manager(session_id: str, actor_id: str) -> AgentCoreMemorySes
 
 
 def _make_chatbot(session_id: str, actor_id: str) -> Agent:
-    return Agent(
+    session_manager = _build_session_manager(session_id, actor_id)
+    kwargs = dict(
         name="chatbot",
         model=BedrockModel(
             model_id=os.getenv("BEDROCK_MODEL_ID", "eu.anthropic.claude-sonnet-4-6"),
@@ -149,8 +154,10 @@ def _make_chatbot(session_id: str, actor_id: str) -> Agent:
         tools=[fetch_url, browse],
         tool_executor=SequentialToolExecutor(),
         system_prompt=_SYSTEM_PROMPT,
-        session_manager=_build_session_manager(session_id, actor_id),
     )
+    if session_manager:
+        kwargs["session_manager"] = session_manager
+    return Agent(**kwargs)
 
 
 def _message_text(msg) -> str:
