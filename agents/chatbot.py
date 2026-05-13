@@ -144,6 +144,7 @@ def _make_chatbot(session_id: str, actor_id: str) -> Agent:
         model=BedrockModel(
             model_id=os.environ["BEDROCK_MODEL_ID"],
             region_name=os.environ["AWS_REGION"],
+            use_native_token_count=False,
         ),
         tools=[fetch_url, browse],
         tool_executor=SequentialToolExecutor(),
