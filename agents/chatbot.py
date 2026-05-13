@@ -142,7 +142,7 @@ def _make_chatbot(session_id: str, actor_id: str) -> Agent:
     return Agent(
         name="chatbot",
         model=BedrockModel(
-            model_id=os.environ["BEDROCK_MODEL_ID"],
+            model_id=os.getenv("BEDROCK_MODEL_ID", "eu.anthropic.claude-sonnet-4-6"),
             region_name=os.environ["AWS_REGION"],
             use_native_token_count=False,
         ),
