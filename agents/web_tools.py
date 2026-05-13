@@ -28,7 +28,12 @@ def fetch_url(url: str) -> dict:
             try:
                 context = browser.contexts[0] if browser.contexts else browser.new_context()
                 page = context.new_page()
-                page.goto(url, wait_until="domcontentloaded", timeout=_NAV_TIMEOUT_MS)
+                try:
+                    page.goto(url, wait_until="domcontentloaded", timeout=_NAV_TIMEOUT_MS)
+                except Exception as nav_err:
+                    # Retry with networkidle for sites that fail on domcontentloaded (HTTP/2 errors)
+                    logger.warning("first navigation failed (%s), retrying with networkidle", nav_err)
+                    page.goto(url, wait_until="networkidle", timeout=_NAV_TIMEOUT_MS)
                 text = (page.inner_text("body") or "").strip()
             finally:
                 browser.close()
